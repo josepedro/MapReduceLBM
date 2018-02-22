@@ -327,15 +327,6 @@ public class WordCount {
             double velocityY = 0;
             double c = 1/Math.sqrt(3);
             double c_square = c*c;
-            /*double[] c0 = {0,0};
-            double[] c1 = {+c,0};
-            double[] c2 = {+c,+c};
-            double[] c3 = {0,+c};
-            double[] c4 = {-c,+c};
-            double[] c5 = {-c, 0};
-            double[] c6 = {-c,-c};
-            double[] c7 = {0,-c};
-            double[] c8 = {c,-c};*/
             double[] ciX = {0,0,+c,+c,+c,0,-c,-c,-c};
             double[] ciY = {0,+c,+c,0,-c,-c,-c,0,+c};
 
@@ -358,7 +349,7 @@ public class WordCount {
                 velocityY += (ciY[Integer.parseInt(entry.getKey())])*entry.getValue();
             }
 
-            velocityX = velocityX;
+            velocityX = velocityX/density;
             velocityY = velocityY/density;
 
             /*
@@ -419,15 +410,6 @@ public class WordCount {
             double velocityY = 0;
             double c = 1/Math.sqrt(3);
             double c_square = c*c;
-            /*double[] c0 = {0,0};
-            double[] c1 = {+c,0};
-            double[] c2 = {+c,+c};
-            double[] c3 = {0,+c};
-            double[] c4 = {-c,+c};
-            double[] c5 = {-c, 0};
-            double[] c6 = {-c,-c};
-            double[] c7 = {0,-c};
-            double[] c8 = {c,-c};*/
             double[] ciX = {0,0,+c,+c,+c,0,-c,-c,-c};
             double[] ciY = {0,+c,+c,0,-c,-c,-c,0,+c};
 
@@ -464,15 +446,15 @@ public class WordCount {
 
     public static void main(String[] args) throws Exception {
 
-
-        String inputFile = "/home/pedro/IdeaProjects/WordCount/input_mr";
+        String inputFile = "/home/pedro/IdeaProjects/WordCount/inputData.txt";
+        String inputFileMR = "/home/pedro/IdeaProjects/WordCount/input_mr/input.txt";
         String outputFile = "/home/pedro/IdeaProjects/WordCount/output_mr";
 
         number_lines = 3;
         number_rows = 3;
 
-        //System.out.println("\nDEBUGAAAANDO\n");
-        //System.out.println(get8_id(5,number_lines, number_rows));
+        Preprocessor preprocessor = new Preprocessor(inputFile, inputFileMR);
+        preprocessor.preprocess();
 
         Configuration conf = new Configuration();
         boolean status = false;
@@ -487,7 +469,7 @@ public class WordCount {
         //String fileIn = args[0] + Integer.toString(i);
         //String fileOut = args[0] + Integer.toString(i+1);
         //FileInputFormat.addInputPath(job, new Path(fileIn));
-        FileInputFormat.addInputPath(job, new Path(inputFile));
+        FileInputFormat.addInputPath(job, new Path(inputFileMR));
         //FileOutputFormat.setOutputPath(job, new Path(fileOut));
         FileOutputFormat.setOutputPath(job, new Path(outputFile));
         status = job.waitForCompletion(true);
