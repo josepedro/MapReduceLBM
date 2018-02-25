@@ -358,7 +358,7 @@ public class WordCount {
                 6  5  4
             */
             // NOW WE HAVE TO COLLIDE
-            double omega = 1.98;
+            double omega = 1.9;
             String resultCollide = "";
             Map<String, Double> epsilons = new HashMap<String, Double>();
             epsilons.put("0", (double) 4/9);
@@ -390,90 +390,86 @@ public class WordCount {
             }
 
 
-            Text ditributionsFunctionsText = new Text(" " + String.valueOf(densityNew));
+            Text ditributionsFunctionsText = new Text(resultCollide);
             context.write(key, ditributionsFunctionsText);
 
         }
     }
 
+    public static class Filter
+            extends Mapper<Object, Text, Text, Text>{
 
-    public static class MacroscopicParameters
-            extends Reducer<Text,Text,Text,Text> {
+        private Text id = new Text();
 
-        public void reduce(Text key, Iterable<Text> values,
-                           Context context
+        public void map(Object key, Text value, Context context
         ) throws IOException, InterruptedException {
 
-            // FIRST WE HAVE TO CALCULATE DENSITY AND VELOCITIES
+            StringTokenizer itr = new StringTokenizer(value.toString());
+            id.set(itr.nextToken());
             double density = 0;
-            double velocityX = 0;
-            double velocityY = 0;
-            double c = 1/Math.sqrt(3);
-            double c_square = c*c;
-            double[] ciX = {0,0,+c,+c,+c,0,-c,-c,-c};
-            double[] ciY = {0,+c,+c,0,-c,-c,-c,0,+c};
-
-            Map<String, Double> fis = new HashMap<String, Double>();
-            for (Text val : values) {
-                StringTokenizer itr = new StringTokenizer(val.toString());
-                try {
-                    String[] directionFi = itr.nextToken().split(":");
-                    String direction = directionFi[0];
-                    fis.put(directionFi[0], Double.parseDouble(directionFi[1]));
-                } catch (Exception e){
-
-                };
-
+            // for each direction
+            while (itr.hasMoreTokens()) {
+                String[] dirFun = itr.nextToken().split(":");
+                String direction = dirFun[0];
+                String distributionFunction = dirFun[1];
+                density += Double.parseDouble(distributionFunction);
             }
 
-            for (Map.Entry<String, Double> entry : fis.entrySet()) {
-                density += entry.getValue();
-                velocityX += (ciX[Integer.parseInt(entry.getKey())])*entry.getValue();
-                velocityY += (ciY[Integer.parseInt(entry.getKey())])*entry.getValue();
-            }
+            Text valueDensity = new Text(String.valueOf(density));
 
-            velocityX = velocityX;
-            velocityY = velocityY/density;
-
-
-
-
-            Text ditributionsFunctionsText = new Text(" " + String.valueOf(density));
-            context.write(key, ditributionsFunctionsText);
-
+            context.write(id, valueDensity);
         }
     }
+
 
     public static void main(String[] args) throws Exception {
 
         String inputFile = "/home/pedro/IdeaProjects/WordCount/inputData.txt";
-        String inputFileMR = "/home/pedro/IdeaProjects/WordCount/input_mr/input.txt";
+        String inputFileMR = "/home/pedro/IdeaProjects/WordCount/output_mr0/input.txt";
+        Runtime.getRuntime().exec("mkdir /home/pedro/IdeaProjects/WordCount/output_mr0");
         String outputFile = "/home/pedro/IdeaProjects/WordCount/output_mr";
 
-        number_lines = 3;
-        number_rows = 3;
+        number_lines = 40;
+        number_rows = 40;
 
         Preprocessor preprocessor = new Preprocessor(inputFile, inputFileMR);
+        preprocessor.generateDefaultMesh();
         preprocessor.preprocess();
 
         Configuration conf = new Configuration();
         boolean status = false;
-        //for (int i = 0; i < 1; i++) {
-        Job job = Job.getInstance(conf, "word count");
-        job.setJarByClass(WordCount.class);
-        job.setMapperClass(TokenizerMapper.class);
-        //job.setCombinerClass(IntSumReducer.class);
-        job.setReducerClass(IntSumReducer.class);
-        job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(Text.class);
-        //String fileIn = args[0] + Integer.toString(i);
-        //String fileOut = args[0] + Integer.toString(i+1);
-        //FileInputFormat.addInputPath(job, new Path(fileIn));
-        FileInputFormat.addInputPath(job, new Path(inputFileMR));
-        //FileOutputFormat.setOutputPath(job, new Path(fileOut));
-        FileOutputFormat.setOutputPath(job, new Path(outputFile));
-        status = job.waitForCompletion(true);
-        //}
+        String fileIn = "";
+        String fileOut = "";
+        for (int i = 0; i < 300; i++) {
+            Job job = Job.getInstance(conf, "word count");
+            job.setJarByClass(WordCount.class);
+            job.setMapperClass(TokenizerMapper.class);
+            job.setReducerClass(IntSumReducer.class);
+            job.setOutputKeyClass(Text.class);
+            job.setOutputValueClass(Text.class);
+            fileIn = outputFile + Integer.toString(i);
+            fileOut = outputFile + Integer.toString(i+1);
+            FileInputFormat.addInputPath(job, new Path(fileIn));
+            //FileInputFormat.addInputPath(job, new Path(inputFileMR));
+            FileOutputFormat.setOutputPath(job, new Path(fileOut));
+            status = job.waitForCompletion(true);
+            if (status)
+                Runtime.getRuntime().exec("rm -r " + fileIn);
+        }
+
+        Job filterJob = Job.getInstance(conf, "posprocessor");
+        filterJob.setJarByClass(WordCount.class);
+        filterJob.setMapperClass(Filter.class);
+        filterJob.setOutputKeyClass(Text.class);
+        filterJob.setOutputValueClass(Text.class);
+        FileInputFormat.addInputPath(filterJob, new Path(fileOut));
+        String outputFinal = "/home/pedro/IdeaProjects/WordCount/output_mr_final";
+        FileOutputFormat.setOutputPath(filterJob, new Path(outputFinal));
+        status = filterJob.waitForCompletion(true);
+
+        Posprocessor posprocessor = new Posprocessor( outputFinal + "/part-r-00000", outputFinal + "/outputFinal.txt");
+        posprocessor.posprocess();
+        Runtime.getRuntime().exec("rm -r " + fileOut);
 
         System.exit(status ? 0 : 1);
     }
