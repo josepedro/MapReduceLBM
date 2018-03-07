@@ -16,6 +16,7 @@ import java.lang.*;
 public class WordCount {
     public static int number_lines;
     public static int number_rows;
+    public static int timeStep;
 
     public static int[] getIdPosition(int id, int number_lines, int number_rows){
         int idCount = 1;
@@ -349,6 +350,15 @@ public class WordCount {
                 velocityY += (ciY[Integer.parseInt(entry.getKey())])*entry.getValue();
             }
 
+            /*int cellId = Integer.parseInt(key.toString());
+            int cellPutDensity = getPositionId(number_lines/2, number_rows/2, number_lines, number_rows);
+            if (cellId == cellPutDensity ){
+                double frequencyLattice = 0.02;
+                double phaseWave = 2*Math.PI*frequencyLattice*(timeStep);
+                double deltaDensity = 0.1*Math.cos(phaseWave);
+                //density += 1 + deltaDensity;
+            }*/
+
             velocityX = velocityX/density;
             velocityY = velocityY/density;
 
@@ -373,7 +383,6 @@ public class WordCount {
             double densityNew = 0;
             for (Map.Entry<String, Double> entry : fis.entrySet()) {
                 double fi = entry.getValue();
-
                 double term1 = (ciY[Integer.parseInt(entry.getKey())]*velocityY
                         + ciX[Integer.parseInt(entry.getKey())]*velocityX)/c_square;
 
@@ -383,13 +392,21 @@ public class WordCount {
                         /(2*c_square*c_square);
 
                 double fi_eq = density*epsilons.get(entry.getKey())*(1 + term1 + term2);
-                fi = fi - omega*(fi - fi_eq);
+                fi = (1-omega)*fi + omega;
                 //fi = fi - fi_eq;
                 densityNew += fi;
+
                 resultCollide += " " + entry.getKey() + ":" +  String.valueOf(fi);
             }
 
-
+            int cellId = Integer.parseInt(key.toString());
+            int cellPutDensity = getPositionId(number_lines/2, number_rows/2, number_lines, number_rows);
+            if (cellId == 25 ){
+                double frequencyLattice = 0.02;
+                double phaseWave = 2*Math.PI*frequencyLattice*(timeStep);
+                double deltaDensity = 0.1*Math.cos(phaseWave);
+                //density += 1 + deltaDensity;
+            }
             Text ditributionsFunctionsText = new Text(resultCollide);
             context.write(key, ditributionsFunctionsText);
 
@@ -429,8 +446,8 @@ public class WordCount {
         Runtime.getRuntime().exec("mkdir /home/pedro/IdeaProjects/WordCount/output_mr0");
         String outputFile = "/home/pedro/IdeaProjects/WordCount/output_mr";
 
-        number_lines = 40;
-        number_rows = 40;
+        number_lines = 10;
+        number_rows = 10;
 
         Preprocessor preprocessor = new Preprocessor(inputFile, inputFileMR);
         preprocessor.generateDefaultMesh();
@@ -440,15 +457,15 @@ public class WordCount {
         boolean status = false;
         String fileIn = "";
         String fileOut = "";
-        for (int i = 0; i < 300; i++) {
+        for (timeStep = 0; timeStep < 1; timeStep++) {
             Job job = Job.getInstance(conf, "word count");
             job.setJarByClass(WordCount.class);
             job.setMapperClass(TokenizerMapper.class);
             job.setReducerClass(IntSumReducer.class);
             job.setOutputKeyClass(Text.class);
             job.setOutputValueClass(Text.class);
-            fileIn = outputFile + Integer.toString(i);
-            fileOut = outputFile + Integer.toString(i+1);
+            fileIn = outputFile + Integer.toString(timeStep);
+            fileOut = outputFile + Integer.toString(timeStep + 1);
             FileInputFormat.addInputPath(job, new Path(fileIn));
             //FileInputFormat.addInputPath(job, new Path(inputFileMR));
             FileOutputFormat.setOutputPath(job, new Path(fileOut));

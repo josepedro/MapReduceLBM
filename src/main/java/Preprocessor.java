@@ -14,16 +14,16 @@ public class Preprocessor {
     }
 
     public void generateDefaultMesh() throws FileNotFoundException, UnsupportedEncodingException {
-        int sizeAxial = 40;
-        int sizeVertical = 40;
+        int sizeAxial = 10;
+        int sizeVertical = 10;
         double density = 1;
         PrintWriter writer = new PrintWriter(fileInputPath, "UTF-8");
         for (int vertical = 0; vertical < sizeVertical; vertical++) {
             for (int axial = 0; axial < sizeAxial; axial++){
                 if (axial == sizeAxial - 1)
                     writer.println(density);
-                else if (axial == sizeAxial/2 && vertical == sizeVertical/2)
-                    writer.println(density + 0.01);
+                else if (axial == sizeAxial/2 - 1 && vertical == sizeVertical/2 - 1)
+                    writer.println(density + 0.0001);
                 else {
                     writer.print(density);
                     writer.print(" ");
