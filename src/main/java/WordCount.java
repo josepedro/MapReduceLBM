@@ -251,16 +251,74 @@ public class WordCount {
         public void map(Object key, Text value, Context context
         ) throws IOException, InterruptedException {
 
+            // FIRST WE HAVE TO CALCULATE DENSITY AND VELOCITIES
+            double density = 0;
+            double velocityX = 0;
+            double velocityY = 0;
+            double c = 1/Math.sqrt(3);
+            double c_square = c*c;
+            double[] ciX = {0,0,+c,+c,+c,0,-c,-c,-c};
+            double[] ciY = {0,+c,+c,0,-c,-c,-c,0,+c};
+
+            Map<String, Double> fis = new HashMap<String, Double>();
             StringTokenizer itr = new StringTokenizer(value.toString());
             id.set(itr.nextToken());
-            // for each direction
             while (itr.hasMoreTokens()) {
-                String[] dirFun = itr.nextToken().split(":");
-                String direction = dirFun[0];
-                String ditributionFunction = dirFun[1];
-                String valueDir = direction + ":" + ditributionFunction;
-                Text valueDirText = new Text(valueDir);
-                //String newId = streamMap.get(direction + id.toString());
+                try {
+                    String[] directionFi = itr.nextToken().split(":");
+                    String direction = directionFi[0];
+                    fis.put(directionFi[0], Double.parseDouble(directionFi[1]));
+                } catch (Exception e){
+
+                };
+            }
+
+            for (Map.Entry<String, Double> entry : fis.entrySet()) {
+                density += entry.getValue();
+                velocityX += (ciX[Integer.parseInt(entry.getKey())])*entry.getValue();
+                velocityY += (ciY[Integer.parseInt(entry.getKey())])*entry.getValue();
+            }
+
+            velocityX = velocityX/density;
+            velocityY = velocityY/density;
+
+             /*
+                8  1  2
+                7  0  3
+                6  5  4
+            */
+            // NOW WE HAVE TO COLLIDE
+            double omega = 1.9;
+            String resultCollide = "";
+            Map<String, Double> epsilons = new HashMap<String, Double>();
+            epsilons.put("0", (double) 4/9);
+            epsilons.put("1", (double) 1/9);
+            epsilons.put("2", (double) 1/36);
+            epsilons.put("3", (double) 1/9);
+            epsilons.put("4", (double) 1/36);
+            epsilons.put("5", (double) 1/9);
+            epsilons.put("6", (double) 1/36);
+            epsilons.put("7", (double) 1/9);
+            epsilons.put("8", (double) 1/36);
+            double densityNew = 0;
+            for (Map.Entry<String, Double> entry : fis.entrySet()) {
+                double fi = entry.getValue();
+                double term1 = (ciY[Integer.parseInt(entry.getKey())]*velocityY
+                        + ciX[Integer.parseInt(entry.getKey())]*velocityX)/c_square;
+
+                double term2 = ((ciY[Integer.parseInt(entry.getKey())]*velocityY + ciX[Integer.parseInt(entry.getKey())]*velocityX)
+                        *(ciY[Integer.parseInt(entry.getKey())]*velocityY + ciX[Integer.parseInt(entry.getKey())]*velocityX)
+                        - (velocityY*velocityY + velocityX*velocityX)*(velocityY*velocityY + velocityX*velocityX)*c_square)
+                        /(2*c_square*c_square);
+
+                double fi_eq = density*epsilons.get(entry.getKey())*(1 + term1 + term2);
+                //fi = fi;// + omega*fi_eq;
+                //fi = fi - omega*(fi - fi_eq);
+
+                resultCollide = entry.getKey() + ":" +  String.valueOf(fi);
+                Text valueDirText = new Text(resultCollide);
+                String direction = entry.getKey();
+
                 if (Integer.parseInt(direction) == 1) {
                     String newId = Integer.toString(
                             get1_id(
@@ -311,25 +369,20 @@ public class WordCount {
                 } else {
                     context.write(id, valueDirText);
                 }
+
             }
+
         }
     }
 
     public static class IntSumReducer
             extends Reducer<Text,Text,Text,Text> {
 
+        private Text id = new Text();
+
         public void reduce(Text key, Iterable<Text> values,
                            Context context
         ) throws IOException, InterruptedException {
-
-            // FIRST WE HAVE TO CALCULATE DENSITY AND VELOCITIES
-            double density = 0;
-            double velocityX = 0;
-            double velocityY = 0;
-            double c = 1/Math.sqrt(3);
-            double c_square = c*c;
-            double[] ciX = {0,0,+c,+c,+c,0,-c,-c,-c};
-            double[] ciY = {0,+c,+c,0,-c,-c,-c,0,+c};
 
             Map<String, Double> fis = new HashMap<String, Double>();
             for (Text val : values) {
@@ -341,72 +394,14 @@ public class WordCount {
                 } catch (Exception e){
 
                 };
-
             }
 
-            for (Map.Entry<String, Double> entry : fis.entrySet()) {
-                density += entry.getValue();
-                velocityX += (ciX[Integer.parseInt(entry.getKey())])*entry.getValue();
-                velocityY += (ciY[Integer.parseInt(entry.getKey())])*entry.getValue();
-            }
-
-            /*int cellId = Integer.parseInt(key.toString());
-            int cellPutDensity = getPositionId(number_lines/2, number_rows/2, number_lines, number_rows);
-            if (cellId == cellPutDensity ){
-                double frequencyLattice = 0.02;
-                double phaseWave = 2*Math.PI*frequencyLattice*(timeStep);
-                double deltaDensity = 0.1*Math.cos(phaseWave);
-                //density += 1 + deltaDensity;
-            }*/
-
-            velocityX = velocityX/density;
-            velocityY = velocityY/density;
-
-            /*
-                8  1  2
-                7  0  3
-                6  5  4
-            */
-            // NOW WE HAVE TO COLLIDE
-            double omega = 1.9;
             String resultCollide = "";
-            Map<String, Double> epsilons = new HashMap<String, Double>();
-            epsilons.put("0", (double) 4/9);
-            epsilons.put("1", (double) 1/9);
-            epsilons.put("2", (double) 1/36);
-            epsilons.put("3", (double) 1/9);
-            epsilons.put("4", (double) 1/36);
-            epsilons.put("5", (double) 1/9);
-            epsilons.put("6", (double) 1/36);
-            epsilons.put("7", (double) 1/9);
-            epsilons.put("8", (double) 1/36);
-            double densityNew = 0;
             for (Map.Entry<String, Double> entry : fis.entrySet()) {
-                double fi = entry.getValue();
-                double term1 = (ciY[Integer.parseInt(entry.getKey())]*velocityY
-                        + ciX[Integer.parseInt(entry.getKey())]*velocityX)/c_square;
-
-                double term2 = ((ciY[Integer.parseInt(entry.getKey())]*velocityY + ciX[Integer.parseInt(entry.getKey())]*velocityX)
-                        *(ciY[Integer.parseInt(entry.getKey())]*velocityY + ciX[Integer.parseInt(entry.getKey())]*velocityX)
-                        - (velocityY*velocityY + velocityX*velocityX)*(velocityY*velocityY + velocityX*velocityX)*c_square)
-                        /(2*c_square*c_square);
-
-                double fi_eq = density*epsilons.get(entry.getKey())*(1 + term1 + term2);
-                fi = (1-omega)*fi + omega;
-                //fi = fi - fi_eq;
-                densityNew += fi;
-
-                resultCollide += " " + entry.getKey() + ":" +  String.valueOf(fi);
+                resultCollide += " " + entry.getKey() + ":" +  String.valueOf(entry.getValue());
             }
 
-            int cellId = Integer.parseInt(key.toString());
-            int cellPutDensity = getPositionId(number_lines/2, number_rows/2, number_lines, number_rows);
-            if (cellId == 25 ){
-                double frequencyLattice = 0.02;
-                double phaseWave = 2*Math.PI*frequencyLattice*(timeStep);
-                double deltaDensity = 0.1*Math.cos(phaseWave);
-                //density += 1 + deltaDensity;
-            }
+
             Text ditributionsFunctionsText = new Text(resultCollide);
             context.write(key, ditributionsFunctionsText);
 
@@ -430,6 +425,9 @@ public class WordCount {
                 String direction = dirFun[0];
                 String distributionFunction = dirFun[1];
                 density += Double.parseDouble(distributionFunction);
+                if(id.toString().equals("21") && direction.equals("5")) {
+                    int a = 8;
+                }
             }
 
             Text valueDensity = new Text(String.valueOf(density));
@@ -446,8 +444,8 @@ public class WordCount {
         Runtime.getRuntime().exec("mkdir /home/pedro/IdeaProjects/WordCount/output_mr0");
         String outputFile = "/home/pedro/IdeaProjects/WordCount/output_mr";
 
-        number_lines = 10;
-        number_rows = 10;
+        number_lines = 6;
+        number_rows = 6;
 
         Preprocessor preprocessor = new Preprocessor(inputFile, inputFileMR);
         preprocessor.generateDefaultMesh();
