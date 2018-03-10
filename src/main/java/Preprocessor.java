@@ -1,4 +1,6 @@
 import java.io.*;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.stream.Stream;
@@ -13,36 +15,55 @@ public class Preprocessor {
         this.fileOutputPath = fileOutputPath;
     }
 
-    public void generateDefaultMesh() throws FileNotFoundException, UnsupportedEncodingException {
+    public void generateDefaultMesh() throws IOException {
         int sizeAxial = 6;
         int sizeVertical = 6;
-        double density = 1;
-        PrintWriter writer = new PrintWriter(fileInputPath, "UTF-8");
-        for (int vertical = 0; vertical < sizeVertical; vertical++) {
-            for (int axial = 0; axial < sizeAxial; axial++){
-                if (axial == sizeAxial - 1)
-                    writer.println(density);
-                else if (axial == sizeAxial/2 - 1 && vertical == sizeVertical/2 - 1)
-                    writer.println(0.0001);
-                else {
-                    writer.print(density);
-                    writer.print(" ");
+        BigDecimal density = new BigDecimal("1.0000");
+        BigDecimal deltaDensity = new BigDecimal("0.0009");
+
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(fileInputPath))) {
+            for (int vertical = 0; vertical < sizeVertical; vertical++) {
+                for (int axial = 0; axial < sizeAxial; axial++) {
+                    if (axial == sizeAxial - 1) {
+                        String number = density.toString();
+                        bw.write(number);
+                        bw.write(" ");
+                    }
+                    else if (axial == sizeAxial / 2 - 1 && vertical == sizeVertical / 2 - 1){
+                        String number = deltaDensity.toString();
+                        bw.write(number);
+                        bw.write("\n");
+                    }
+                    else {
+                        String number = density.toString();
+                        bw.write(number);
+                        bw.write(" ");
+                    }
                 }
             }
+
+            // no need to close it.
+            bw.close();
+
+        } catch (IOException e) {
+
+            e.printStackTrace();
+
         }
-        writer.close();
+
     }
 
     public void preprocess(){
 
         // This will reference one line at a time
         String line = null;
+        String[] directions = {"0:", "1:", "2:", "3:", "4:", "5:", "6:", "7:", "8:"};
         try {
             // FileReader reads text files in the default encoding.
             FileReader fileReader =
                     new FileReader(fileInputPath);
 
-            PrintWriter writer = new PrintWriter(fileOutputPath, "UTF-8");
+            BufferedWriter bw = new BufferedWriter(new FileWriter(fileOutputPath));
 
             // Always wrap FileReader in BufferedReader.
             BufferedReader bufferedReader =
@@ -52,24 +73,18 @@ public class Preprocessor {
             while((line = bufferedReader.readLine()) != null) {
                 String[] lineCells = line.split(" ");
                 for (String cell : lineCells){
-                    double density = Double.parseDouble(cell);
-                    id += 1;
-                    writer.println(String.valueOf(id) + " " +
-                            "0:" + density/9 + " " +
-                            "1:" + density/9 + " " +
-                            "2:" + density/9 + " " +
-                            "3:" + density/9 + " " +
-                            "4:" + density/9 + " " +
-                            "5:" + density/9 + " " +
-                            "6:" + density/9 + " " +
-                            "7:" + density/9 + " " +
-                            "8:" + density/9);
+                    for (String direction : directions){
+                        BigDecimal density = new BigDecimal(cell);
+                        density = density.divide(new BigDecimal("9.00"), MathContext.DECIMAL128);
+                        bw.write(String.valueOf(id) + " " +
+                        direction + density.toString());
+                    }
                 }
             }
 
             // Always close files.
             bufferedReader.close();
-            writer.close();
+            bw.close();
         }
         catch(FileNotFoundException ex) {
             System.out.println(
